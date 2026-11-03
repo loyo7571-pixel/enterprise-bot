@@ -1,0 +1,23 @@
+Welcome to the internal knowledge base for TechNova Solutions. This document contains company policies, technical documentation, and general FAQs.
+
+SECTION 1: HUMAN RESOURCES AND VACATION POLICY
+At TechNova Solutions, we believe in a healthy work-life balance. Full-time employees are entitled to 25 days of paid vacation per year. Vacation days must be requested at least two weeks in advance through the HR portal. Unused vacation days can be carried over to the next calendar year, but a maximum of 5 days can be rolled over. Sick leave is separate and does not count against vacation days. If an employee is sick for more than three consecutive days, a doctor's note must be provided to the HR department.
+
+SECTION 2: REMOTE WORK GUIDELINES
+TechNova Solutions operates on a hybrid work model. Employees are required to be in the office on Tuesdays and Thursdays. Mondays, Wednesdays, and Fridays are optional remote work days. When working remotely, employees must be available on Slack and email during core hours (10 AM to 3 PM EST). The company provides a one-time stipend of $500 to set up a home office, which can be used for purchasing monitors, ergonomic chairs, or desks. 
+
+SECTION 3: SOFTWARE AND ENGINEERING PRACTICES
+Our backend engineering team primarily uses Python and Go. We deploy our applications using Docker and Kubernetes. Every pull request must be reviewed by at least two senior engineers before it can be merged into the main branch. We use GitHub Actions for our CI/CD pipelines. All code must pass automated unit tests and integration tests before deployment. We follow a microservices architecture, and our primary database is PostgreSQL. For caching, we use Redis. 
+
+SECTION 4: ARTIFICIAL INTELLIGENCE AND RAG
+Retrieval-Augmented Generation (RAG) is a technique that combines an information retrieval system with a large language model. Instead of relying solely on the LLM's internal training data, RAG fetches relevant documents from a vector database and provides them as context to the LLM. This reduces hallucinations and ensures the AI answers based on factual, up-to-date company data. We use ChromaDB as our local vector database and SentenceTransformers for creating embeddings. 
+
+SECTION 5: GENERAL FAQs
+Q: What is the WiFi password for the guest network? 
+A: The guest WiFi password is "TechNovaGuest2026" and it changes every Friday.
+Q: How do I contact IT support?
+A: You can email support@technova.com or visit the IT desk on the 3rd floor.
+Q: What is the capital of France?
+A: The capital of France is Paris, but this fact is completely unrelated to our company policies and is only here to test the AI's ability to ignore irrelevant information.
+Q: Does the company provide free coffee?
+A: Yes, there is a coffee machine on every floor, but you must bring your own mug.
