@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fastapi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fastapi
+  template:
+    metadata:
+      labels:
+        app: fastapi
+    spec:
+      containers:
+      - name: fastapi
+        # REPLACE with your actual Docker Hub username
+        image: varun546/enterprise-bot:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        env:
+        - name: DATABASE_URL
+          value: "postgresql://admin:secretpassword@postgres-service:5432/aiapp"
+        - name: GROQ_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: groq-secret
+              key: GROQ_API_KEY
+        livenessProbe:
+          exec:
+            command: ["/bin/bash", "/app/healthcheck.sh"]
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: chroma-storage
+          mountPath: /app/dev
+      volumes:
+      - name: chroma-storage
+        emptyDir: {} # Note: For production, this should be a PVC!
