@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 from sqlalchemy.orm import Session
 from datetime import timedelta
 from groq import Groq
+from fastapi import UploadFile, File
+import shutil
+import uuid
 
 # Internal imports
 from database import engine, get_db
@@ -17,6 +20,8 @@ import semantic_cache
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
+from langchain_community.document_loaders import TextLoader, PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_groq import ChatGroq
 from langchain_chroma import Chroma
 from langchain_community.embeddings import HuggingFaceEmbeddings
@@ -39,7 +44,7 @@ def get_rag_chain():
         retriever = vectordb.as_retriever(search_kwargs={"k": 2})
         model = ChatGroq(model="openai/gpt-oss-20b", temperature=0.1)
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "You are a helpful assistant. Answer using ONLY this context:\n{context}"),
+            ("system", "You are a helpful assistant. Answer using ONLY this context:\n{context}\n\nIf the answer is not in the context, say 'I don't know based on the provided documents.'"),
             ("human", "{question}")
         ])
         rag_chain = (
@@ -155,5 +160,46 @@ def get_tokens_left():
             "remaining_tokens_minute": headers.get("x-ratelimit-remaining-tokens"),
             "limit_tokens_minute": headers.get("x-ratelimit-limit-tokens")
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/upload")
+def upload_file(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    try:
+        # 1. Save the uploaded file to a temporary location
+        file_location = f"./tmp_{uuid.uuid4()}_{file.filename}"
+        with open(file_location, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # 2. Load the document based on file type
+        if file.filename.endswith(".pdf"):
+            loader = PyPDFLoader(file_location)
+        else:
+            loader = TextLoader(file_location)
+            
+        docs = loader.load()
+        
+        # 3. Split the text into chunks
+        splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+        chunks = splitter.split_documents(docs)
+        
+        # 4. Add to ChromaDB (this uses the existing collection)
+        # We need to load the embedding model and the vectorstore again
+        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        vectorstore = Chroma(persist_directory="dev", embedding_function=embeddings)
+        
+        # Add chunks to the DB
+        vectorstore.add_documents(chunks)
+        
+        # 5. Clean up the temporary file
+        os.remove(file_location)
+        global rag_chain
+        rag_chain = None
+        
+        return {"message": f"Successfully uploaded and ingested {file.filename} with {len(chunks)} chunks."}
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
