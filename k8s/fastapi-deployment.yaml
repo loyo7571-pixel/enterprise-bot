@@ -15,7 +15,7 @@ spec:
       containers:
       - name: fastapi
         # REPLACE with your actual Docker Hub username
-        image: varun546/enterprise-bot:latest
+        image: varun546/enterprise-bot:b88800af1d89312b18da8b4bd4bbe1534ac643de
         imagePullPolicy: Always
         ports:
         - containerPort: 8000
