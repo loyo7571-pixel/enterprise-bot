@@ -34,24 +34,26 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Enterprise AI API")
 
 # 2. Global cache for RAG chain (Lazy loading)
-rag_chain = None
-def get_rag_chain():
-    global rag_chain
-    if rag_chain is None:
+print("Loading global embedding model...")
+GLOBAL_EMBEDDINGS = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+def get_rag_chain(user_id: int):
         print("Loading RAG chain...")
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        vectordb = Chroma(persist_directory="dev", embedding_function=embeddings)
-        retriever = vectordb.as_retriever(search_kwargs={"k": 2})
+        vectordb = Chroma(persist_directory="dev", embedding_function=GLOBAL_EMBEDDINGS)
+        retriever = vectordb.as_retriever(search_kwargs={
+            "k": 2,
+            "filter": {"user_id": user_id}
+            })
         model = ChatGroq(model="openai/gpt-oss-20b", temperature=0.1)
         prompt = ChatPromptTemplate.from_messages([
             ("system", "You are a helpful assistant. Answer using ONLY this context:\n{context}\n\nIf the answer is not in the context, say 'I don't know based on the provided documents.'"),
             ("human", "{question}")
         ])
-        rag_chain = (
+        chain = (
             {"context": retriever, "question": RunnablePassthrough()}
             | prompt | model | StrOutputParser()
         )
-    return rag_chain
+        return chain
 
 # --- PYDANTIC SCHEMAS ---
 class UserCreate(BaseModel):
@@ -108,7 +110,7 @@ def ask_question(
             return {"question": request.question, "answer": cached_response, "source": "semantic_cache"}
         
          # 1. Get the answer from RAG
-        chain = get_rag_chain()
+        chain = get_rag_chain(current_user.id)
         answer = chain.invoke(request.question)
 
         semantic_cache.set_cached_answer(request.question, answer)
@@ -188,18 +190,37 @@ def upload_file(
         
         # 4. Add to ChromaDB (this uses the existing collection)
         # We need to load the embedding model and the vectorstore again
-        embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-        vectorstore = Chroma(persist_directory="dev", embedding_function=embeddings)
-        
+        vectorstore = Chroma(persist_directory="dev", embedding_function=GLOBAL_EMBEDDINGS)
+
+        for chunk in chunks:
+            chunk.metadata["user_id"] = current_user.id
         # Add chunks to the DB
         vectorstore.add_documents(chunks)
         
         # 5. Clean up the temporary file
         os.remove(file_location)
-        global rag_chain
-        rag_chain = None
         
         return {"message": f"Successfully uploaded and ingested {file.filename} with {len(chunks)} chunks."}
         
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/clear")
+def clear_user_data(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    try:
+        # 1. Clear Postgres Chat History for this user
+        db.query(models.ChatHistory).filter(models.ChatHistory.user_id == current_user.id).delete()
+        db.commit()
+
+        # 2. Clear THIS USER'S data from ChromaDB
+        # We have to query and delete by the metadata user_id
+        vectordb = Chroma(persist_directory="dev", embedding_function=GLOBAL_EMBEDDINGS)
+        # Delete where metadata user_id == current_user.id
+        vectordb._collection.delete(where={"user_id": current_user.id})
+
+        return {"message": "Your data has been cleared."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

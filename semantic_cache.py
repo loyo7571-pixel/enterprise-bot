@@ -43,3 +43,10 @@ def set_cached_answer(question: str, answer: str):
         metadatas=[{"answer": answer}],
         ids=[str(hash(question))] # Use a hash of the question as the ID
     )
+    
+def clear_cache():
+    # Delete all items in the cache collection
+    global cache_collection
+    client.delete_collection("semantic_cache")
+    cache_collection = client.get_or_create_collection(name="semantic_cache")
+    return True

@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cache-cleanup
+spec:
+  # This runs at midnight every day (minute hour day month weekday)
+  schedule: "0 0 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: cache-cleaner
+            # Use the same image as your FastAPI app
+            image: varun546/enterprise-bot:latest
+            # Tell Python to run the clear function from your semantic_cache module
+            command: ["python", "-c", "import semantic_cache; semantic_cache.clear_cache(); print('Cache cleared successfully!')"]
+            env:
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: groq-secret
+                  key: GROQ_API_KEY
+          restartPolicy: OnFailure

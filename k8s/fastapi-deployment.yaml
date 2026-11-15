@@ -43,4 +43,5 @@ spec:
           mountPath: /app/dev
       volumes:
       - name: chroma-storage
-        emptyDir: {} # Note: For production, this should be a PVC!
+        persistentVolumeClaim:
+          claimName: chroma-pvc

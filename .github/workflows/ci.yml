@@ -57,7 +57,9 @@ jobs:
 
       - name: Apply Kubernetes Manifests
         run: |
+          kubectl apply -f k8s/chroma-pvc.yaml
           kubectl apply -f k8s/postgres-statefulset.yaml
           kubectl apply -f k8s/fastapi-deployment.yaml
           kubectl apply -f k8s/fastapi-service.yaml
+          kubectl apply -f k8s/cache-cleanup-cronjob.yaml
           kubectl rollout status deployment/fastapi
